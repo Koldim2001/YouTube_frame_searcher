@@ -20,8 +20,6 @@ import glob
 from func import *
 
 
-
-
 def make_images_and_embedding(video_urls, seconds_step=10):
     # Удаляем папку images, если она уже существует
     if os.path.exists('images'):
@@ -118,7 +116,10 @@ def main():
 
     if st.sidebar.button("Поделить видео на кадры"):
         video_urls = text_input.split('\n')
-        make_images_and_embedding(video_urls, seconds_step=seconds_step)
+        with st.spinner('Обработка видео...'):
+            if os.path.exists('image_embeddings.npy'):
+                os.remove('image_embeddings.npy')
+            make_images_and_embedding(video_urls, seconds_step=seconds_step)
         st.success('Видео с ютуба загружены')
 
     text_imput = st.text_input("Введите тектовый запрос на поиск")
@@ -133,10 +134,8 @@ def main():
                     st.image(image)
                 with col_second:
                     st.markdown(f'<a href="{link}" target="_blank">{link}</a>', unsafe_allow_html=True)
-
-
-    
-
+        else:
+            st.error('Нет доступных кадров для анализа из видео. Сначала произведите загрузку видеороликов.')
 
 
 
