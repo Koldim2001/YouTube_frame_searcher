@@ -41,7 +41,7 @@ def make_images_and_embedding(video_urls, seconds_step=10):
             list_of_files.append(os.path.join(image_folder, filename))
 
             # Получите батч изображений и выполните преобразования
-            inputs = processor(text=None, images=image, return_tensors="pt", padding=True)
+            inputs = processor(text=None, images=image, return_tensors="pt")
             pixel_values = inputs["pixel_values"].to(device)
 
             # Получите эмбеддинг изображения
