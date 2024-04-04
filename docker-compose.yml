@@ -1,0 +1,11 @@
+version: "3.9"
+services:
+  youtube_frame_searcher:
+    image: koldim2001/youtube_frame_searcher:1.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    #volumes:
+    #  - .:/app
