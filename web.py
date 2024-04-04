@@ -1,20 +1,13 @@
 import os
-import youtube_dl
-import cv2
 import streamlit as st
 import shutil
 from transformers import CLIPTokenizerFast, CLIPProcessor, CLIPModel 
 import torch
 
 from PIL import Image
-import cv2
 import os
 from tqdm import tqdm
 import numpy as np
-
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.metrics import euclidean_distances
-import matplotlib.pyplot as plt
 
 import glob
 from func import *
@@ -68,7 +61,7 @@ def make_images_and_embedding(video_urls, seconds_step=10):
 
 
 
-def compute_k_nearest_imaget_to_prompt(text_imput, top_k):
+def compute_k_nearest_imaget_to_text_prompt(text_imput, top_k):
     prompt = "a photo of " + text_imput
     # tokenize the prompt
     inputs = tokenizer(prompt, return_tensors="pt").to(device)
@@ -76,13 +69,33 @@ def compute_k_nearest_imaget_to_prompt(text_imput, top_k):
     # Получение латентного кода текстового описания
     query_code = text_emb.squeeze(0).cpu().detach().numpy()
 
-
     # Загружаем массив NumPy из файла (в нем латентные коды всех фоток из папки)
     image_arr = np.load('image_embeddings.npy')
 
     # Получение мер близости
     distances_cosine = compute_distances(query_code, image_arr, method='cosine')
 
+    # Получаем список всех файлов изображений в папке images
+    list_of_files = glob.glob('images/*.jpg')
+
+    # Пример использования функции
+    images_out, list_of_links = display_top_k_images(list_of_files, distances_cosine, k=top_k)
+
+    return images_out, list_of_links
+
+
+def compute_k_nearest_imaget_to_image_prompt(image_array, top_k):
+    image = processor(text=None, images=image_array, return_tensors="pt")['pixel_values'].to(device) 
+    image_features = model.get_image_features(pixel_values=image)
+
+    # Получение латентного кода 
+    query_code = image_features.squeeze(0).cpu().detach().numpy()
+
+    # Загружаем массив NumPy из файла (в нем латентные коды всех фоток из папки)
+    image_arr = np.load('image_embeddings.npy')
+
+    # Получение мер близости
+    distances_cosine = compute_distances(query_code, image_arr, method='cosine')
 
     # Получаем список всех файлов изображений в папке images
     list_of_files = glob.glob('images/*.jpg')
@@ -108,32 +121,52 @@ def main():
     set_page_static_info()
     
     st.sidebar.title("Загрузчик ютуб видео")
-    text_input = st.sidebar.text_area("Введите URL-адреса видео (каждый youtube url на новой строке):")
+    text_input_url = st.sidebar.text_area("Введите URL-адреса видео (каждый youtube url на новой строке):")
     seconds_step = st.sidebar.number_input("Введите шаг нарезки в секундах:", min_value=1, value=10, step=1)
 
-    st.sidebar.markdown('---')
-
-
     if st.sidebar.button("Поделить видео на кадры"):
-        video_urls = text_input.split('\n')
+        video_urls = [url.strip() for url in text_input_url.split('\n') if url.strip()]
         with st.spinner('Обработка видео...'):
             if os.path.exists('image_embeddings.npy'):
                 os.remove('image_embeddings.npy')
+            print(video_urls)
             make_images_and_embedding(video_urls, seconds_step=seconds_step)
         st.success('Видео с ютуба загружены')
 
-    text_imput = st.text_input("Введите тектовый запрос на поиск")
+    st.sidebar.markdown('---')
+
+    search_type = st.sidebar.radio("Выберите тип поиска:", ("По тексту", "По изображению"))
+    
+    if search_type == "По тексту":
+        text_input = st.text_input("Введите тектовый запрос на поиск")
+    else:
+        image_file = st.file_uploader("Загрузите изображение для поиска схожих", type=["jpg", "png", "jpeg"])
+    
     top_k = st.number_input("Введите размер top k найденных моментов:", min_value=1, value=5, step=1)
 
     if st.button(":red[Найти по тексту момент из видео]"):
         if os.path.exists('images') and os.path.exists('image_embeddings.npy'):
-            images_out, list_of_links = compute_k_nearest_imaget_to_prompt(text_imput, top_k)
-            for image, link in zip(images_out, list_of_links):
-                col_first, col_second, _  = st.columns(3)
-                with col_first:
-                    st.image(image)
-                with col_second:
-                    st.markdown(f'<a href="{link}" target="_blank">{link}</a>', unsafe_allow_html=True)
+            if search_type == "По тексту":
+                images_out, list_of_links = compute_k_nearest_imaget_to_text_prompt(text_input, top_k)
+                for image, link in zip(images_out, list_of_links):
+                    col_first, col_second, _  = st.columns(3)
+                    with col_first:
+                        st.image(image)
+                    with col_second:
+                        st.markdown(f'<a href="{link}" target="_blank">{link}</a>', unsafe_allow_html=True)
+            else:
+                if image_file is not None:
+                    image = Image.open(image_file)
+                    image_array = np.array(image.convert('RGB'))
+                    images_out, list_of_links = compute_k_nearest_imaget_to_image_prompt(image_array, top_k)
+                    for image, link in zip(images_out, list_of_links):
+                        col_first, col_second, _  = st.columns(3)
+                        with col_first:
+                            st.image(image)
+                        with col_second:
+                            st.markdown(f'<a href="{link}" target="_blank">{link}</a>', unsafe_allow_html=True)
+                else: 
+                    st.error('Не удалось загрузить изображение')
         else:
             st.error('Нет доступных кадров для анализа из видео. Сначала произведите загрузку видеороликов.')
 
