@@ -1,0 +1,7 @@
+opencv-python
+transformers
+Pillow
+tqdm
+scikit-learn
+matplotlib
+streamlit==1.29.0
