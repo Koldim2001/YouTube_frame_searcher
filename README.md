@@ -9,7 +9,9 @@ __Этот проект - это настоящая находка для тех
 
 ![example-of-web](configs/example.gif)
 
-Короткий видео-туториал по проекту доступен по [ссылке](https://www.youtube.com/watch?v=pbBHrdt6a_M)
+Короткий видео-туториал по проекту доступен по [ссылке](https://www.youtube.com/watch?v=pbBHrdt6a_M)\
+Подробный видео-туториал по проекту доступен по [ссылке](https://www.youtube.com/watch?v=G1mi_1uXMlA)
+
 
 ---
 
