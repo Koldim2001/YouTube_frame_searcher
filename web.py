@@ -1,16 +1,45 @@
 import os
-import streamlit as st
+import glob
+import sys
 import shutil
-from transformers import CLIPTokenizerFast, CLIPProcessor, CLIPModel 
-import torch
 
+import streamlit as st
+import torch
 from PIL import Image
-import os
 from tqdm import tqdm
 import numpy as np
 
-import glob
 from func import *
+
+if not sys.warnoptions:
+    import warnings
+    warnings.simplefilter("ignore")
+
+
+@st.cache_resource
+def upload_models():
+    # Кэшируем все модели и обработчики CLIP
+    from transformers import CLIPTokenizerFast, CLIPProcessor, CLIPModel 
+
+    print('Начался процесс подгрузки модели:')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    print(device)
+
+    model_id = 'openai/clip-vit-base-patch32'
+    model = CLIPModel.from_pretrained(model_id).to(device) 
+    tokenizer = CLIPTokenizerFast.from_pretrained(model_id) 
+    processor = CLIPProcessor.from_pretrained(model_id)
+    return model, tokenizer, processor, device
+
+
+def set_page_static_info():
+    st.set_page_config(
+        page_title="YouTube-searcher",
+        page_icon="configs/logo.png",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
+    st.title("Поисковик по ютуб видео")
 
 
 def make_images_and_embedding(video_urls, seconds_step=10):
@@ -60,7 +89,6 @@ def make_images_and_embedding(video_urls, seconds_step=10):
         np.save('image_embeddings.npy', image_arr)
 
 
-
 def compute_k_nearest_imaget_to_text_prompt(text_imput, top_k):
     prompt = "a photo of " + text_imput
     # tokenize the prompt
@@ -106,20 +134,7 @@ def compute_k_nearest_imaget_to_image_prompt(image_array, top_k):
     return images_out, list_of_links
 
 
-
-def set_page_static_info():
-    st.set_page_config(
-        page_title="YouTube-searcher",
-        page_icon="configs/logo.png",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
-    st.title("Поисковик по ютуб видео")
-
-
 def main():
-    set_page_static_info()
-    
     st.sidebar.title("Загрузчик ютуб видео")
     text_input_url = st.sidebar.text_area("Введите URL-адреса видео (каждый youtube url на новой строке):")
     seconds_step = st.sidebar.number_input("Введите шаг нарезки в секундах:", min_value=1, value=10, step=1)
@@ -173,14 +188,6 @@ def main():
 
 
 if __name__ == "__main__":
-
-    print('Начался процесс подгрузки модели:')
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    print(device)
-
-    model_id = 'openai/clip-vit-base-patch32'
-    model = CLIPModel.from_pretrained(model_id).to(device) 
-    tokenizer = CLIPTokenizerFast.from_pretrained(model_id) 
-    processor = CLIPProcessor.from_pretrained(model_id)
-
+    set_page_static_info()
+    model, tokenizer, processor, device = upload_models()
     main()
